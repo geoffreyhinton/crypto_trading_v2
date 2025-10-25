@@ -43,6 +43,7 @@ type Account struct {
 	gorm.Model
 	UserID           string          `json:"user_id" gorm:"not null"`
 	Type             AccountType     `json:"type" gorm:"not null"`
+	SubType          string          `json:"sub_type"`
 	Currency         string          `json:"currency" gorm:"not null"`
 	Balance          decimal.Decimal `json:"balance" gorm:"type:decimal(20,8);default:0"`
 	AvailableBalance decimal.Decimal `json:"available_balance" gorm:"type:decimal(20,8);default:0"`
