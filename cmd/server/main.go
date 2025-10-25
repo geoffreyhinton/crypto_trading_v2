@@ -37,7 +37,7 @@ func loadConfig() (*Config, error) {
 	viper.AddConfigPath("./configs")
 	viper.AddConfigPath(".")
 	// Set defaults
-	viper.SetDefault("database_url", "postgres://user:password@localhost/crypto_exchange?sslmode=disable")
+	viper.SetDefault("database_url", "postgres://user:password@localhost/crypto_exchange_v2?sslmode=disable")
 	// Read from environment variables
 	viper.AutomaticEnv()
 	// Try to read config file
