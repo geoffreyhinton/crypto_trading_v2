@@ -1,0 +1,177 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: crypto-postgres-v2
+    environment:
+      POSTGRES_DB: crypto_exchange_v2
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - crypto-network-v2
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d crypto_exchange_v2"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: crypto-redis-v2
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - crypto-network-v2
+
+  # Zookeeper (required for Kafka)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: crypto-zookeeper-v2
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - crypto-network-v2
+
+  # Kafka Message Broker
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: crypto-kafka-v2
+    depends_on:
+      - zookeeper
+    ports:
+      - "9093:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9093,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+    networks:
+      - crypto-network-v2
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9093", "--list"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # Kafka UI (optional - for monitoring)
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: crypto-kafka-ui-v2
+    depends_on:
+      - kafka
+    ports:
+      - "8083:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+    networks:
+      - crypto-network-v2
+
+  # pgAdmin - PostgreSQL Administration
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: crypto-pgadmin-v2
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@crypto.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5051:80"
+    depends_on:
+      - postgres
+    networks:
+      - crypto-network-v2
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+  # Crypto Exchange Trading Application
+  crypto-exchange:
+    build: .
+    container_name: crypto-exchange-app-v2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8082:8080"
+    environment:
+      - DATABASE_URL=postgres://user:password@postgres:5432/crypto_exchange?sslmode=disable
+      - KAFKA_BROKERS=kafka:29092
+      - REDIS_URL=redis://redis:6379
+      - SERVER_ADDRESS=:8080
+    volumes:
+      - ./configs:/app/configs
+    networks:
+      - crypto-network-v2
+
+  # Bitcoin Node (Regtest)
+  bitcoind:
+    image: ulamlabs/bitcoind-custom-regtest
+    container_name: crypto-bitcoind-v2
+    ports:
+      - "19002:19001"  # RPC port (default for this image)
+      - "18445:18444"  # P2P port
+    environment:
+      - BITCOIN_NETWORK=regtest
+    volumes:
+      - bitcoin_data:/home/bitcoin/.bitcoin
+    networks:
+      - crypto-network-v2
+    healthcheck:
+      test: ["CMD", "bitcoin-cli", "-regtest", "-rpcport=19001", "-rpcuser=test", "-rpcpassword=test", "getblockchaininfo"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Bitcoin RPC Explorer
+  btc-rpc-explorer:
+    build:
+      context: ./docker/btc-rpc-explorer
+      dockerfile: Dockerfile
+    container_name: crypto-btc-explorer-v2
+    depends_on:
+      bitcoind:
+        condition: service_healthy
+    ports:
+      - "3003:3002"  # Web interface
+    environment:
+      - BTCEXP_HOST=0.0.0.0
+      - BTCEXP_PORT=3002
+      - BTCEXP_BITCOIND_HOST=bitcoind
+      - BTCEXP_BITCOIND_PORT=19001
+      - BTCEXP_BITCOIND_USER=test
+      - BTCEXP_BITCOIND_PASS=test
+      - BTCEXP_BITCOIND_RPC_TIMEOUT=10000
+      - BTCEXP_ADDRESS_API=none
+      - BTCEXP_SLOW_DEVICE_MODE=false
+      - BTCEXP_PRIVACY_MODE=false
+      - BTCEXP_NO_INMEMORY_RPC_CACHE=false
+      - DEBUG=btcexp:*
+    networks:
+      - crypto-network-v2
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  pgadmin_data:
+  bitcoin_data:
+
+networks:
+  crypto-network-v2:
+    driver: bridge

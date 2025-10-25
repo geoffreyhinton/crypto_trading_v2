@@ -1,0 +1,4 @@
+# Crypto Exchange Trading System Configuration
+
+# Database Configuration
+database_url: "postgres://user:password@localhost:5432/crypto_exchange_v2?sslmode=disable"
