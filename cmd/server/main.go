@@ -16,7 +16,7 @@ import (
 func main() {
 	// Initialize logger
 	logger := logrus.New()
-	logger.SetLevel(logrus.InfoLevel)
+	logger.SetLevel(logrus.DebugLevel)
 	logger.SetFormatter(&logrus.JSONFormatter{})
 	// Load configuration
 	config, err := loadConfig()
@@ -30,7 +30,7 @@ func main() {
 		logger.Fatalf("Failed to initialize database: %v", err)
 	}
 	apiServer := api.NewServer(db, logger)
-	
+
 	// Start the server in a goroutine
 	go func() {
 		logger.Info("Starting API server on :8080")

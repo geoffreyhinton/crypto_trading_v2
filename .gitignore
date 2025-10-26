@@ -1,0 +1,4 @@
+main
+tmp/build-errors.log
+tmp/build-output.log
+.DS_Store
