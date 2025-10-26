@@ -57,3 +57,29 @@ type Account struct {
 	// Orders    []Order    `json:"orders,omitempty" gorm:"foreignKey:AccountID"`
 	// Positions []Position `json:"positions,omitempty" gorm:"foreignKey:AccountID"`
 }
+
+// AutoMigrate performs automatic migration for all models
+func AutoMigrate(db *gorm.DB) error {
+	return db.AutoMigrate(
+		// Core models
+		&User{},
+		&Account{},
+		
+		// Crypto wallet models
+		&CryptoAddress{},
+		&CryptoTransaction{},
+		&CryptoDeposit{},
+		&CryptoWithdrawal{},
+		&CryptoUTXO{},
+		
+		// Extended crypto models  
+		&BitcoinAddress{},
+		&EthereumAddress{},
+		&BitcoinTransaction{},
+		&EthereumTransaction{},
+		&BitcoinDeposit{},
+		&EthereumDeposit{},
+		&BitcoinWithdrawal{},
+		&EthereumWithdrawal{},
+	)
+}

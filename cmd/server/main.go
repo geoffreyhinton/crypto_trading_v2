@@ -30,7 +30,7 @@ func main() {
 		logger.Fatalf("Failed to initialize database: %v", err)
 	}
 	apiServer := api.NewServer(db, logger)
-	
+
 	// Start the server in a goroutine
 	go func() {
 		logger.Info("Starting API server on :8080")
@@ -76,7 +76,7 @@ func initDatabase(databaseUrl string, logger *logrus.Logger) (*gorm.DB, error) {
 		logger.WithError(err).Error("Failed to connect to database")
 		return nil, err
 	}
-	err = db.AutoMigrate(&models.User{}, &models.Account{})
+	err = models.AutoMigrate(db)
 	if err != nil {
 		logger.WithError(err).Error("Failed to migrate database")
 		return nil, err
